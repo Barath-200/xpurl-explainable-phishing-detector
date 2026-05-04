@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>XPURL — Phishing URL Detector</title>
+
+<link rel="stylesheet" href="styles.css" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  :root {
+    --bg0:       #07090f;
+    --bg1:       #0d1117;
+    --bg2:       #141b26;
+    --bg3:       #1c2537;
+    --border:    rgba(255,255,255,0.07);
+    --border2:   rgba(255,255,255,0.13);
+    --text1:     #e8edf5;
+    --text2:     #8b96a8;
+    --text3:     #4e5a6b;
+    --accent:    #3b82f6;
+    --accent2:   #60a5fa;
+    --red:       #ef4444;
+    --red-dim:   rgba(239,68,68,0.15);
+    --green:     #22c55e;
+    --green-dim: rgba(34,197,94,0.12);
+    --amber:     #f59e0b;
+    --amber-dim: rgba(245,158,11,0.12);
+    --mono:      'Space Mono', monospace;
+    --sans:      'DM Sans', sans-serif;
+    --radius:    10px;
+    --radius-lg: 16px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg0);
+    color: var(--text1);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Grid noise background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ── */
+  .page-wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 20px 80px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 0 36px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .logo-text {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--text1);
+  }
+
+  .logo-text span {
+    color: var(--accent2);
+  }
+
+  .logo-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    border: 1px solid var(--border2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .header-meta {
+    font-size: 12px;
+    color: var(--text3);
+    font-family: var(--mono);
+    text-align: right;
+    line-height: 1.8;
+  }
+
+  .header-meta .dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 6px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px;
+    margin-bottom: 28px;
+    width: fit-content;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    padding: 8px 20px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    border-radius: 7px;
+    transition: all .2s;
+    letter-spacing: 0.01em;
+  }
+
+  .tab-btn.active {
+    background: var(--bg3);
+    color: var(--text1);
+    box-shadow: 0 0 0 1px var(--border2);
+  }
+
+  /* ── Panels ── */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Input card ── */
+  .input-card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px 28px 24px;
+    margin-bottom: 24px;
+  }
+
+  .input-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text2);
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .url-input-wrap {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .url-input {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text1);
+    outline: none;
+    transition: border-color .2s;
+  }
+
+  .url-input::placeholder { color: var(--text3); }
+
+  .url-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+  }
+
+  .scan-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius);
+    padding: 12px 28px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: all .15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .scan-btn:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-1px);
+  }
+
+  .scan-btn:active:not(:disabled) { transform: translateY(0); }
+  .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .scan-btn .btn-icon {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.6);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: none;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .scan-btn.loading .btn-icon { display: block; }
+  .scan-btn.loading .btn-label { display: none; }
+
+  .examples-row {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .examples-label {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .example-chip {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all .15s;
+  }
+
+  .example-chip:hover {
+    border-color: var(--border2);
+    color: var(--text1);
+  }
+
+  /* ── Result card ── */
+  #result-area { transition: all .3s; }
+
+  .result-card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .verdict-bar {
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .verdict-bar.phishing {
+    background: var(--red-dim);
+    border-bottom-color: rgba(239,68,68,0.2);
+  }
+
+  .verdict-bar.legitimate {
+    background: var(--green-dim);
+    border-bottom-color: rgba(34,197,94,0.2);
+  }
+
+  .verdict-icon {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .phishing .verdict-icon { background: rgba(239,68,68,0.2); }
+  .legitimate .verdict-icon { background: rgba(34,197,94,0.2); }
+
+  .verdict-text h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .phishing .verdict-text h2 { color: #f87171; }
+  .legitimate .verdict-text h2 { color: #4ade80; }
+
+  .verdict-url {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text2);
+    word-break: break-all;
+  }
+
+  /* ── Metrics row ── */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .metric-cell {
+    padding: 20px 24px;
+    border-right: 1px solid var(--border);
+  }
+
+  .metric-cell:last-child { border-right: none; }
+
+  .metric-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .metric-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text1);
+  }
+
+  .metric-value.risk-high   { color: var(--red); }
+  .metric-value.risk-medium { color: var(--amber); }
+  .metric-value.risk-low    { color: var(--green); }
+
+  /* ── Probability bar ── */
+  .prob-section {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .prob-label {
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+  }
+
+  .prob-track {
+    height: 8px;
+    background: var(--bg3);
+    border-radius: 4px;
+    overflow: visible;
+    position: relative;
+  }
+
+  .prob-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .8s cubic-bezier(.16,1,.3,1);
+  }
+
+  .prob-fill.high   { background: var(--red); }
+  .prob-fill.medium { background: var(--amber); }
+  .prob-fill.low    { background: var(--green); }
+
+  .prob-threshold {
+    position: absolute;
+    top: -4px;
+    height: 16px;
+    width: 2px;
+    background: var(--text2);
+    border-radius: 1px;
+    transform: translateX(-50%);
+  }
+
+  .prob-threshold::after {
+    content: attr(data-label);
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--text3);
+    white-space: nowrap;
+  }
+
+  /* ── SHAP section ── */
+  .shap-section {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+
+  .shap-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .shap-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    width: 190px;
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  .shap-track {
+    flex: 1;
+    height: 18px;
+    background: var(--bg2);
+    border-radius: 3px;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .shap-zero {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--border2);
+  }
+
+  .shap-fill {
+    height: 100%;
+    border-radius: 3px;
+    position: absolute;
+  }
+
+  .shap-fill.positive {
+    background: rgba(239,68,68,0.7);
+    left: 50%;
+  }
+
+  .shap-fill.negative {
+    background: rgba(59,130,246,0.7);
+    right: 50%;
+  }
+
+  .shap-value {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    width: 64px;
+    flex-shrink: 0;
+  }
+
+  /* ── Features table ── */
+  .features-section {
+    padding: 20px 28px;
+  }
+
+  .features-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--accent2);
+    font-family: var(--mono);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 0;
+    letter-spacing: 0.04em;
+    padding: 0;
+  }
+
+  .features-toggle .arrow {
+    transition: transform .2s;
+    font-size: 10px;
+  }
+
+  .features-toggle.open .arrow { transform: rotate(90deg); }
+
+  .features-grid {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .features-grid.visible { display: grid; }
+
+  .feature-cell {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .feat-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .feat-val {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text1);
+    font-weight: 700;
+  }
+
+  .feat-val.flagged { color: var(--red); }
+
+  /* ── Batch panel ── */
+  .batch-input {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text1);
+    outline: none;
+    resize: vertical;
+    min-height: 160px;
+    transition: border-color .2s;
+    line-height: 1.8;
+  }
+
+  .batch-input::placeholder { color: var(--text3); }
+  .batch-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+  }
+
+  .batch-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  .batch-count {
+    font-size: 12px;
+    color: var(--text3);
+    font-family: var(--mono);
+  }
+
+  /* ── Batch results ── */
+  .batch-table-wrap {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-top: 20px;
+  }
+
+  .batch-table-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .batch-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text1);
+  }
+
+  .batch-summary {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    display: flex;
+    gap: 16px;
+  }
+
+  .batch-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+    transition: background .15s;
+  }
+
+  .batch-row:last-child { border-bottom: none; }
+  .batch-row:hover { background: rgba(255,255,255,0.02); }
+
+  .batch-url {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text2);
+    word-break: break-all;
+  }
+
+  .badge {
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--mono);
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+  }
+
+  .badge-phishing  { background: rgba(239,68,68,0.2);  color: #f87171; }
+  .badge-legitimate{ background: rgba(34,197,94,0.15); color: #4ade80; }
+  .badge-high      { background: rgba(239,68,68,0.15); color: #fca5a5; }
+  .badge-medium    { background: rgba(245,158,11,0.15);color: #fcd34d; }
+  .badge-low       { background: rgba(34,197,94,0.12); color: #86efac; }
+
+  .prob-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    width: 50px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ── About panel ── */
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .about-card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+  }
+
+  .about-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent2);
+    margin-bottom: 10px;
+    font-family: var(--mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .about-card p {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.7;
+  }
+
+  .tech-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .tech-tag {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+  }
+
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .metric-row:last-child { border-bottom: none; }
+  .metric-row .key   { color: var(--text2); }
+  .metric-row .val   { font-family: var(--mono); color: var(--text1); font-weight: 600; }
+
+  /* ── Error state ── */
+  .error-msg {
+    background: var(--red-dim);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    font-size: 13px;
+    color: #fca5a5;
+    font-family: var(--mono);
+    display: none;
+    margin-bottom: 16px;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text3);
+  }
+
+  .empty-state .big-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+
+  .empty-state p {
+    font-size: 14px;
+    color: var(--text3);
+  }
+
+  /* ── Mode indicator ── */
+  .mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 10px;
+  }
+
+  .mode-badge.demo { border-color: rgba(245,158,11,0.3); color: var(--amber); }
+  .mode-badge.model { border-color: rgba(34,197,94,0.3); color: var(--green); }
+
+  /* ── Legend ── */
+  .shap-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .metrics-row { grid-template-columns: 1fr 1fr; }
+    .metrics-row .metric-cell:nth-child(3) { grid-column: 1 / -1; border-right: none; border-top: 1px solid var(--border); }
+    .about-grid { grid-template-columns: 1fr; }
+    header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .url-input-wrap { flex-direction: column; }
+  }
+</style>
+</head>
+
+<body>
+<div class="page-wrap">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="logo">
+      <span class="logo-text">X<span>P</span>URL</span>
+    </div>
+    <div class="header-meta">
+      <div>Explainable Phishing Detection</div>
+      <div>DistilBERT + SHAP + EWC</div>
+    </div>
+  </header>
+
+  <!-- ── Tabs ── -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('single')">Single URL</button>
+    <button class="tab-btn" onclick="switchTab('batch')">Batch Scan</button>
+    <button class="tab-btn" onclick="switchTab('about')">About</button>
+  </div>
+
+  <!-- ═══════════════════════════════════
+       SINGLE URL PANEL
+  ═══════════════════════════════════ -->
+  <div id="panel-single" class="panel active">
+
+    <div class="input-card">
+      <label class="input-label">Enter URL to analyse</label>
+      <div class="url-input-wrap">
+        <input
+          id="url-input"
+          class="url-input"
+          type="text"
+          placeholder="https://example.com/path?query=value"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="scan-btn" id="scan-btn" onclick="runScan()">
+          <div class="btn-icon"></div>
+          <span class="btn-label">Scan URL</span>
+        </button>
+      </div>
+
+      <div class="examples-row">
+        <span class="examples-label">Try:</span>
+        <span class="example-chip" onclick="setExample(this)">https://github.com/python/cpython</span>
+        <span class="example-chip" onclick="setExample(this)">http://paypal-secure-login.tk/verify?token=abc123</span>
+        <span class="example-chip" onclick="setExample(this)">https://docs.python.org/3/tutorial</span>
+        <span class="example-chip" onclick="setExample(this)">https://amazon-account-update.ml/signin</span>
+      </div>
+    </div>
+
+    <div id="error-msg" class="error-msg"></div>
+
+    <div id="result-area">
+      <div class="empty-state">
+        <div class="big-icon">🔍</div>
+        <p>Enter a URL above and click Scan to analyse it for phishing indicators.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════
+       BATCH PANEL
+  ═══════════════════════════════════ -->
+  <div id="panel-batch" class="panel">
+
+    <div class="input-card">
+      <label class="input-label">Paste URLs (one per line, max 50)</label>
+      <textarea
+        id="batch-input"
+        class="batch-input"
+        placeholder="https://github.com/user/repo&#10;http://paypal-verify.tk/login?id=abc&#10;https://docs.python.org/3/..."
+        oninput="updateCount()"
+      ></textarea>
+      <div class="batch-footer">
+        <span class="batch-count" id="batch-count">0 URLs</span>
+        <button class="scan-btn" id="batch-btn" onclick="runBatch()">
+          <div class="btn-icon"></div>
+          <span class="btn-label">Scan All</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="batch-error" class="error-msg"></div>
+    <div id="batch-results"></div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════
+       ABOUT PANEL
+  ═══════════════════════════════════ -->
+  <div id="panel-about" class="panel">
+
+    <div class="about-grid">
+
+      <div class="about-card">
+        <h3>Architecture</h3>
+        <p>XPURL fuses a character-level DistilBERT encoder with a 25-dimensional statistical feature head. Both streams are concatenated and passed through a shared classifier.</p>
+        <div class="tech-stack">
+          <span class="tech-tag">DistilBERT</span>
+          <span class="tech-tag">SHAP</span>
+          <span class="tech-tag">EWC</span>
+          <span class="tech-tag">PyTorch</span>
+          <span class="tech-tag">Flask</span>
+        </div>
+      </div>
+
+      <div class="about-card">
+        <h3>Performance</h3>
+        <div class="metric-row"><span class="key">Accuracy</span><span class="val">—</span></div>
+        <div class="metric-row"><span class="key">F1 Score</span><span class="val" id="meta-f1">—</span></div>
+        <div class="metric-row"><span class="key">AUC-ROC</span><span class="val" id="meta-auc">—</span></div>
+        <div class="metric-row"><span class="key">Threshold</span><span class="val" id="meta-thresh">—</span></div>
+        <div class="metric-row"><span class="key">Device</span><span class="val" id="meta-device">—</span></div>
+        <div class="metric-row"><span class="key">Mode</span><span class="val" id="meta-mode">—</span></div>
+      </div>
+
+      <div class="about-card">
+        <h3>Continual Learning</h3>
+        <p>Elastic Weight Consolidation (EWC) allows the model to adapt to new phishing patterns without forgetting previous knowledge — protecting against concept drift in live deployments.</p>
+      </div>
+
+      <div class="about-card">
+        <h3>Explainability</h3>
+        <p>Every prediction is accompanied by SHAP values showing which URL features drove the decision — enabling analysts to understand, audit, and trust the system.</p>
+      </div>
+
+    </div>
+
+    <div style="margin-top:20px; background:var(--bg1); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px 24px;">
+      <p style="font-size:12px; color:var(--text3); font-family:var(--mono); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.08em;">Backend</p>
+      <p style="font-size:13px; color:var(--text2);">
+        Connect the HTML file to <code style="font-family:var(--mono); color:var(--accent2);">app.py</code>.
+        Set <code style="font-family:var(--mono); color:var(--accent2);">XPURL_MODEL_DIR</code> to your
+        saved model directory. The server runs on <code style="font-family:var(--mono); color:var(--accent2);">localhost:5000</code> by default.
+        If no model is found, the app runs in <em>demo mode</em> using heuristic scoring.
+      </p>
+    </div>
+
+  </div>
+
+</div><!-- /page-wrap -->
+
+<script>
+const API = 'http://localhost:5000/api';
+
+// ── Tab switching ──
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', b.textContent.toLowerCase().startsWith(name.charAt(0) === 's' ? 'single' : name.charAt(0) === 'b' ? 'batch' : 'about'));
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// ── Set example URL ──
+function setExample(el) {
+  document.getElementById('url-input').value = el.textContent.trim();
+  document.getElementById('url-input').focus();
+}
+
+// ── Update batch count ──
+function updateCount() {
+  const lines = document.getElementById('batch-input').value
+    .split('\n').map(s => s.trim()).filter(Boolean);
+  document.getElementById('batch-count').textContent = lines.length + ' URL' + (lines.length !== 1 ? 's' : '');
+}
+
+// ── Enter key on single input ──
+document.getElementById('url-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runScan();
+});
+
+// ── Single scan ──
+async function runScan() {
+  const url = document.getElementById('url-input').value.trim();
+  const errDiv = document.getElementById('error-msg');
+  errDiv.style.display = 'none';
+
+  if (!url) { showError(errDiv, 'Please enter a URL to analyse.'); return; }
+
+  const btn = document.getElementById('scan-btn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  try {
+    const res  = await fetch(API + '/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (data.error) { showError(errDiv, data.error); return; }
+    renderResult(data);
+  } catch (err) {
+    showError(errDiv, 'Cannot reach API server. Make sure app.py is running on localhost:5000.');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+}
+
+// ── Batch scan ──
+async function runBatch() {
+  const raw = document.getElementById('batch-input').value;
+  const urls = raw.split('\n').map(s => s.trim()).filter(Boolean);
+  const errDiv = document.getElementById('batch-error');
+  errDiv.style.display = 'none';
+
+  if (!urls.length) { showError(errDiv, 'Please enter at least one URL.'); return; }
+  if (urls.length > 50) { showError(errDiv, 'Maximum 50 URLs per batch.'); return; }
+
+  const btn = document.getElementById('batch-btn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  try {
+    const res  = await fetch(API + '/predict_batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls }),
+    });
+    const data = await res.json();
+    if (data.error) { showError(errDiv, data.error); return; }
+    renderBatch(data.results);
+  } catch (err) {
+    showError(errDiv, 'Cannot reach API server. Make sure app.py is running on localhost:5000.');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+}
+
+// ── Show error ──
+function showError(el, msg) {
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+
+// ── Render single result ──
+function renderResult(d) {
+  const isPhish  = d.label === 'PHISHING';
+  const riskCls  = d.risk.toLowerCase();
+  const probPct  = (d.probability * 100).toFixed(1) + '%';
+  const threshPct = (d.threshold * 100).toFixed(1);
+
+  // SHAP bars
+  const maxAbs = Math.max(...(d.shap_drivers || []).map(x => Math.abs(x.value)), 0.001);
+  const shapRows = (d.shap_drivers || []).map(s => {
+    const pct = (Math.abs(s.value) / maxAbs * 48).toFixed(1);
+    const dir = s.value > 0 ? 'positive' : 'negative';
+    const sign = s.value > 0 ? '+' : '';
+    return `
+      <div class="shap-bar-row">
+        <div class="shap-name">${esc(s.feature)}</div>
+        <div class="shap-track">
+          <div class="shap-zero"></div>
+          <div class="shap-fill ${dir}" style="width:${pct}%"></div>
+        </div>
+        <div class="shap-value">${sign}${s.value.toFixed(4)}</div>
+      </div>`;
+  }).join('');
+
+  // Feature cells
+  const featCells = Object.entries(d.features || {}).map(([k, v]) => {
+    const flagged = (k === 'brand_impersonation' || k === 'has_ip' || k === 'sus_tld' || k === 'has_sus_keywords') && v > 0;
+    return `
+      <div class="feature-cell">
+        <span class="feat-name">${esc(k)}</span>
+        <span class="feat-val${flagged ? ' flagged' : ''}">${typeof v === 'number' ? v.toFixed(v % 1 === 0 ? 0 : 3) : v}</span>
+      </div>`;
+  }).join('');
+
+  const modeBadge = d.mode === 'demo'
+    ? '<span class="mode-badge demo">demo mode — heuristic scoring</span>'
+    : '<span class="mode-badge model">model inference</span>';
+
+  document.getElementById('result-area').innerHTML = `
+    <div class="result-card">
+
+      <div class="verdict-bar ${isPhish ? 'phishing' : 'legitimate'}">
+        <div class="verdict-icon">${isPhish ? '⚠' : '✓'}</div>
+        <div class="verdict-text">
+          <h2>${isPhish ? 'Phishing Detected' : 'Legitimate URL'}</h2>
+          <div class="verdict-url">${esc(d.url)}</div>
+          ${modeBadge}
+        </div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-cell">
+          <div class="metric-label">Phishing Prob</div>
+          <div class="metric-value">${probPct}</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-label">Risk Level</div>
+          <div class="metric-value risk-${riskCls}">${d.risk}</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-label">Threshold</div>
+          <div class="metric-value" style="font-size:18px">${d.threshold}</div>
+        </div>
+      </div>
+
+      <div class="prob-section">
+        <div class="prob-label">
+          <span>Probability spectrum</span>
+          <span>${probPct}</span>
+        </div>
+        <div class="prob-track">
+          <div class="prob-fill ${riskCls}" id="prob-fill" style="width:0%"></div>
+          <div class="prob-threshold" style="left:${threshPct}%" data-label="thresh ${d.threshold}"></div>
+        </div>
+      </div>
+
+      ${shapRows ? `
+      <div class="shap-section">
+        <div class="section-title">SHAP feature contributions</div>
+        ${shapRows}
+        <div class="shap-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(239,68,68,0.7)"></div>Towards phishing</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(59,130,246,0.7)"></div>Towards legitimate</div>
+        </div>
+      </div>` : ''}
+
+      ${featCells ? `
+      <div class="features-section">
+        <button class="features-toggle" id="feat-toggle" onclick="toggleFeatures()">
+          <span class="arrow">▶</span> Show raw features
+        </button>
+        <div class="features-grid" id="feat-grid">${featCells}</div>
+      </div>` : ''}
+
+    </div>`;
+
+  // Animate probability bar
+  setTimeout(() => {
+    const fill = document.getElementById('prob-fill');
+    if (fill) fill.style.width = (d.probability * 100).toFixed(1) + '%';
+  }, 60);
+}
+
+function toggleFeatures() {
+  const grid   = document.getElementById('feat-grid');
+  const toggle = document.getElementById('feat-toggle');
+  const open   = grid.classList.toggle('visible');
+  toggle.classList.toggle('open', open);
+  toggle.querySelector('.arrow').textContent = open ? '▼' : '▶';
+  toggle.childNodes[1].textContent = (open ? ' Hide' : ' Show') + ' raw features';
+}
+
+// ── Render batch ──
+function renderBatch(results) {
+  if (!results || !results.length) {
+    document.getElementById('batch-results').innerHTML = '<p style="color:var(--text3);font-size:13px;margin-top:12px;">No results.</p>';
+    return;
+  }
+
+  const phishCount = results.filter(r => r.label === 'PHISHING').length;
+  const rows = results.map(r => {
+    const isP = r.label === 'PHISHING';
+    return `
+      <div class="batch-row">
+        <span class="batch-url">${esc(r.url)}</span>
+        <span class="badge ${isP ? 'badge-phishing' : 'badge-legitimate'}">${r.label}</span>
+        <span class="badge badge-${r.risk.toLowerCase()}">${r.risk}</span>
+        <span class="prob-pill">${(r.probability * 100).toFixed(1)}%</span>
+      </div>`;
+  }).join('');
+
+  document.getElementById('batch-results').innerHTML = `
+    <div class="batch-table-wrap">
+      <div class="batch-table-header">
+        <span class="batch-title">Scan results</span>
+        <div class="batch-summary">
+          <span style="color:var(--red)">${phishCount} phishing</span>
+          <span style="color:var(--green)">${results.length - phishCount} legitimate</span>
+        </div>
+      </div>
+      ${rows}
+    </div>`;
+}
+
+// ── Sanitise ──
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Load health info ──
+async function loadHealth() {
+  try {
+    const res  = await fetch(API + '/health');
+    const data = await res.json();
+    document.querySelector('.header-meta').innerHTML = `
+      <div>Model: ${data.model}</div>
+      <div>Device: ${data.device}</div>`;
+
+    const m = data.metadata || {};
+    document.getElementById('meta-f1').textContent     = m.val_f1_ewc    || m.val_f1    || '—';
+    document.getElementById('meta-auc').textContent    = m.val_auc_ewc   || m.val_auc   || '—';
+    document.getElementById('meta-thresh').textContent = data.threshold  || '—';
+    document.getElementById('meta-device').textContent = data.device     || '—';
+    document.getElementById('meta-mode').textContent   = data.model      || '—';
+  } catch {
+    document.querySelector('.header-meta').innerHTML = `
+      <div style="color:var(--amber)"><span class="dot" style="background:var(--amber)"></span>API offline</div>
+      <div>Start app.py to connect</div>`;
+  }
+}
+
+loadHealth();
+</script>
+</body>
+</html>
